@@ -2,14 +2,22 @@ import wiringpi2 as wpi
 import signal
 import sys
 import time
-import spi
+
+class SPIError(Exception):
+    """
+    SPI Error
+    """
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return str(self.value)
 
 HIGH = 1
 LOW = 0
 OUTPUT = 1
 INPUT = 0
 
-A0 = 9 #mapping from mux chan to WPI pin numbers...
+A0 = 9 #mapping from mux chan to WPI pin numbers
 A1 = 7
 A2 = 5
 A3 = 4
@@ -39,45 +47,47 @@ def switch_to_channel(channel):
     for i, pin_value in enumerate(conf):
         wpi.digitalWrite(MUX_PINS[i], pin_value)
 
+def _make_binary(num):
+    return format(ord(num), 'b').zfill(8)
+
 def read(channel):
     """
     Reads the value of a channel (on the mux) from the adc
     """
     switch_to_channel(channel)
-    # val = '%s' % 0b100000000000000000000001 #send a 24 bit number
     val = '\n'
-    v1 = 0
-    v2 = 0
+    value_1 = 0
+    value_2 = 0
+    retcode = 0
     wpi.digitalWrite(CSB, LOW)
-    # val = spi.transfer((0xff, 0xff, 0xff))
+    retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val) #drop this it's all 0's
+
     retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
+    value_1 = _make_binary(val)
     retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
-    # print val
-    v1 = val
-    retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
-    # print val
-    v2 = val
+    value_2 = _make_binary(val)
+
     wpi.digitalWrite(CSB, HIGH)
     if retcode == -1:
-        raise Exception('ERROR PERFORMING SPI DATA RW on channel: %s, retcode: %s' % 
-                        (SPI_CHANNEL, retcode))
-    # val = (v1 << 8) | v2
-    val = ''.join(format(ord(x), 'b').zfill(8) for x in [v1,v2])
-    return val
+        e = SPIError('ERROR PERFORMING SPI DATA RW on channel: {!s}, retcode: {!s}'.format(SPI_CHANNEL, retcode))
+        raise e
+    return '' + value_1 + '' + value_2
 
 def run():
     """
     Main runloop
     """
     setup()
-    print 'Start of run: %s' % time.time()
-    print 'Channel 14,Channel 15,Channel 16'
+    print('Start of run: {!s}'.format(time.time()))
+    print('Channel 14,Channel 15,Channel 16')
 
     while True:
         c15 = read(15)
-        # print '%s,' % read(14),
-        print '%s' % str(int(c15,2)).zfill(5)
-        # print '%s'  % read(16)
+        # print('{},' % read(14),)
+        # print('{}' % str(int(c15,2)).zfill(5))
+        # print(c15,)
+        print(int(c15,2))
+        # print('{}'  % read(16))
 
 def setup():
     """
@@ -105,7 +115,7 @@ def signal_handler(signal, frame):
     """
     For when we hit CTRL+C!
     """
-    print 'End of run: %s' % time.time()
+    print('End of run: {!s}'.format(time.time()))
     sys.exit(0)
 
 if __name__ == "__main__":
