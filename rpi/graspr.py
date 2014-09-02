@@ -2,6 +2,8 @@ import wiringpi2 as wpi
 import signal
 import sys
 import time
+from thread import *
+from collections import deque
 
 class SPIError(Exception):
     """
@@ -39,6 +41,10 @@ CHANNELS = {
     16: [1, 1, 1, 1]
 }
 
+DQ_MAX_LENGTH = 10000
+DATA = deque(maxlen=DQ_MAX_LENGTH)
+
+
 def switch_to_channel(channel):
     """
     Switches on the correct channel on the mux
@@ -59,55 +65,51 @@ def read(channel):
     value_1 = 0
     value_2 = 0
     retcode = 0
-    wpi.digitalWrite(CSB, LOW)
-    retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val) #drop this it's all 0's
+    try:
+        wpi.digitalWrite(CSB, LOW)
+        retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val) #drop this it's all 0's
+        retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
+        value_1 = _make_binary(val)
+        retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
+        value_2 = _make_binary(val)
 
-    retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
-    value_1 = _make_binary(val)
-    retcode = wpi.wiringPiSPIDataRW(SPI_CHANNEL, val)
-    value_2 = _make_binary(val)
-
-    wpi.digitalWrite(CSB, HIGH)
-    if retcode == -1:
-        e = SPIError('ERROR PERFORMING SPI DATA RW on channel: {!s}, retcode: {!s}'.format(SPI_CHANNEL, retcode))
-        raise e
-    return '' + value_1 + '' + value_2
+        wpi.digitalWrite(CSB, HIGH)
+    except Exception as err:
+        print("Error: {0}".format(err))
+    # if retcode == -1:
+    #     print((type(retcode)))
+    #     print((type(SPI_CHANNEL)))
+    #     err = 'ERROR PERFORMING SPI DATA RW on channel: {:s}, retcode: {:s}'.format(str(SPI_CHANNEL),str(retcode))
+    #     e = SPIError(err)
+    #     print(err)
+    #     # raise e
+    return '{}{}'.format(value_1,value_2)
 
 def run():
     """
     Main runloop
     """
-    setup()
-    print('Start of run: {!s}'.format(time.time()))
-    print('Channel 14,Channel 15,Channel 16')
-
     while True:
-        c15 = read(15)
-        # print('{},' % read(14),)
-        # print('{}' % str(int(c15,2)).zfill(5))
-        # print(c15,)
-        print(int(c15,2))
-        # print('{}'  % read(16))
+        read_14 = read(14)
+        read_15 = read(15)
+        read_16 = read(16)
+        yield "{:s},{:s},{:s}".format(read_14, read_15, read_16)
 
-def setup():
+
+
+def setup(SPI_SPEED=SPI_CLOCK_SPEED):
     """
     Perform initial board and SPI setup
     """
     signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
-
     wpi.wiringPiSetup()
-
     for pin in MUX_PINS:
         wpi.pinMode(pin, OUTPUT)
 
     wpi.pinMode(EN, OUTPUT)
     wpi.digitalWrite(EN, HIGH) #EN should always be high.
-
     wpi.pinMode(CSB, OUTPUT)
-
-    wpi.wiringPiSPISetup(0, SPI_CLOCK_SPEED)
-    # spi.openSPI(speed=1000000, mode=0)
-
+    wpi.wiringPiSPISetup(0, SPI_SPEED)
 
 
 
@@ -115,9 +117,37 @@ def signal_handler(signal, frame):
     """
     For when we hit CTRL+C!
     """
-    print('End of run: {!s}'.format(time.time()))
+    print(('End of run: {!s}'.format(time.time())))
     sys.exit(0)
 
+
+def server(args):
+    global DATA
+    runner = run()
+    for i in runner:
+        DATA.append(i)
+
+def spawn_in_thread():
+    setup()
+    start_new_thread(server,(None,))
+
 if __name__ == "__main__":
-    run()
+    print('Setting up')
+    setup()
+    print(('Start of run: {!s}'.format(time.time())))
+    print('Channel 14,Channel 15,Channel 16')
+
+    spawn_in_thread()
+    while True:
+        if len(DATA) != DQ_MAX_LENGTH:
+            toprint = "{}\r".format(len(DATA))
+            sys.stdout.write(toprint)
+        else:
+            sys.stdout.write('FULL! {}\r'.format(str(int(time.time()))))
+
+        sys.stdout.flush()
+        time.sleep(0.1)
+    # runner = run()
+    # for i in runner:
+    #     print(i)
 
