@@ -1,28 +1,39 @@
 import socket
 from thread import *
+import sys
+import time
 
 sock = None
 SOCK_HOST = ''
-SOCK_PORT = 8080
+SOCK_PORT = 8085
 SOCK_BACKLOG = 3
 sock_connection = None
 sock_address = None
 
 #Function for handling connections. This will be used to create threads
-def clientthread(conn):
+def clientthread(conn, DATA):
     #Sending message to connected client
-    conn.send('Welcome to the server. Type something and hit enter\n') #send only takes string
+    conn.send('START OF RUN:\n')
+    conn.send('{},channel 14,15,16,DEC(14),DEC(15),DEC(16)\n'.format(int(time.time()*1000))) #send only takes string
      
     #infinite loop so that function do not terminate and thread do not end.
     while True:
-         
-        #Receiving from client
-        data = conn.recv(1024)
-        reply = 'OK...' + data
-        if not data: 
+        if (len(DATA) == 0):
+            reply = "NO_DATA"
+            # time.sleep(0.2)
+            continue
+        reply = '{}\n'.format(DATA[0])
+        DATA.popleft()
+        # if not data: 
+        #     break
+        try:
+            conn.sendall(reply)
+        except socket.error:
+            print 'SOCKET CLOSED! closing connection'
+            conn.close()
             break
-     
-        conn.sendall(reply)
+
+
      
     print('Ended connection with {}'.format(conn))
     #came out of loop
@@ -53,14 +64,17 @@ def setup_socket():
     print('Now listening for connections on socket.')
     sock.listen(SOCK_BACKLOG)
 
-
-if __name__ == "__main__":
+def run(DATA):
     setup_socket()
     #now keep talking with the client
     while True:
         #wait to accept a connection - blocking call
         sock_connection, sock_address = sock.accept()
-        print('Connected with ' + sock_address[0] + ':' + str(sock_address[1]))
+        sys.stdout.write('Connected with ' + sock_address[0] + ':' + str(sock_address[1]))
          
         #start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
-        start_new_thread(clientthread, (sock_connection, ))
+        start_new_thread(clientthread, (sock_connection, DATA))
+
+
+if __name__ == "__main__":
+    run(None)

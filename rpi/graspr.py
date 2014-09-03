@@ -4,6 +4,7 @@ import sys
 import time
 from thread import *
 from collections import deque
+import web
 
 class SPIError(Exception):
     """
@@ -33,7 +34,7 @@ SCKL = 14
 
 SPI_CHANNEL = 0  #on RPI there are two SPI channels, 0 and 1
 
-SPI_CLOCK_SPEED = int(1E6) #hz
+SPI_CLOCK_SPEED = int(2E6) #hz
 
 CHANNELS = {
     14: [1, 1, 0, 1],
@@ -93,9 +94,7 @@ def run():
         read_14 = read(14)
         read_15 = read(15)
         read_16 = read(16)
-        yield "{:s},{:s},{:s}".format(read_14, read_15, read_16)
-
-
+        yield "{},{:s},{:s},{:s},{},{},{}".format(int(time.time()*1000), read_14, read_15, read_16, int(read_14, 2), int(read_15, 2), int(read_16, 2))
 
 def setup(SPI_SPEED=SPI_CLOCK_SPEED):
     """
@@ -111,8 +110,6 @@ def setup(SPI_SPEED=SPI_CLOCK_SPEED):
     wpi.pinMode(CSB, OUTPUT)
     wpi.wiringPiSPISetup(0, SPI_SPEED)
 
-
-
 def signal_handler(signal, frame):
     """
     For when we hit CTRL+C!
@@ -124,13 +121,16 @@ def signal_handler(signal, frame):
 def server(args):
     global DATA
     runner = run()
+    sys.stdout.write('===============')
+    sys.stdout.flush()
     for i in runner:
         DATA.append(i)
 
 def spawn_in_thread():
+    global DATA
     setup()
     start_new_thread(server,(None,))
-
+    start_new_thread(web.run,(DATA,))
 if __name__ == "__main__":
     print('Setting up')
     setup()
@@ -138,6 +138,7 @@ if __name__ == "__main__":
     print('Channel 14,Channel 15,Channel 16')
 
     spawn_in_thread()
+    
     while True:
         if len(DATA) != DQ_MAX_LENGTH:
             toprint = "{}\r".format(len(DATA))
