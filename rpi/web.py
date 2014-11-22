@@ -5,7 +5,7 @@ import time
 
 sock = None
 SOCK_HOST = ''
-SOCK_PORT = 8085
+SOCK_PORT = 8084
 SOCK_BACKLOG = 3
 sock_connection = None
 sock_address = None
@@ -18,6 +18,7 @@ def clientthread(conn, DATA):
      
     #infinite loop so that function do not terminate and thread do not end.
     while True:
+        # print 'DATA %s' % DATA
         if (len(DATA) == 0):
             reply = "NO_DATA"
             # time.sleep(0.2)
@@ -27,7 +28,7 @@ def clientthread(conn, DATA):
         # if not data: 
         #     break
         try:
-            conn.sendall(reply)
+            print conn.send(reply)
         except socket.error:
             print 'SOCKET CLOSED! closing connection'
             conn.close()
@@ -39,7 +40,7 @@ def clientthread(conn, DATA):
     #came out of loop
     conn.close()
 
-def setup_socket():
+def setup_socket(PORT=None):
     global sock
     # Create a TCP/IP socket
     try:
@@ -51,7 +52,7 @@ def setup_socket():
     print('Created.')
 
     # Bind the socket to the port
-    server_address = (SOCK_HOST, SOCK_PORT)
+    server_address = (SOCK_HOST, PORT or SOCK_PORT)
     print('starting up on {} port {}'.format(*server_address))
     try:
         print('Attempting to bind socket...'),
@@ -64,8 +65,10 @@ def setup_socket():
     print('Now listening for connections on socket.')
     sock.listen(SOCK_BACKLOG)
 
-def run(DATA):
-    setup_socket()
+def run(DATA, PORT=None):
+    if (PORT):
+        PORT = int(PORT)
+    setup_socket(PORT)
     #now keep talking with the client
     while True:
         #wait to accept a connection - blocking call

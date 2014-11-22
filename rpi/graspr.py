@@ -15,6 +15,8 @@ class SPIError(Exception):
     def __str__(self):
         return str(self.value)
 
+PORT = 8080
+
 HIGH = 1
 LOW = 0
 OUTPUT = 1
@@ -130,12 +132,16 @@ def spawn_in_thread():
     global DATA
     setup()
     start_new_thread(server,(None,))
-    start_new_thread(web.run,(DATA,))
+    start_new_thread(web.run,(DATA, PORT))
+
 if __name__ == "__main__":
     print('Setting up')
     setup()
     print(('Start of run: {!s}'.format(time.time())))
     print('Channel 14,Channel 15,Channel 16')
+
+    if len(sys.argv) > 1:
+        PORT = sys.argv[1]
 
     spawn_in_thread()
     
@@ -147,7 +153,7 @@ if __name__ == "__main__":
             sys.stdout.write('FULL! {}\r'.format(str(int(time.time()))))
 
         sys.stdout.flush()
-        time.sleep(0.1)
+        # time.sleep(0.1)
     # runner = run()
     # for i in runner:
     #     print(i)
