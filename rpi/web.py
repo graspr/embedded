@@ -10,6 +10,17 @@ SOCK_BACKLOG = 3
 sock_connection = None
 sock_address = None
 
+
+
+def signal_handler(signal, frame):
+    """
+    For when we hit CTRL+C!
+    """
+    global sock
+    print('Closing socket.')
+    sock.close()
+    sys.exit(0)
+
 #Function for handling connections. This will be used to create threads
 def clientthread(conn, DATA):
     #Sending message to connected client
@@ -28,6 +39,7 @@ def clientthread(conn, DATA):
         # if not data: 
         #     break
         try:
+            # print 'LOL %s' % conn.send(reply)
             pass
         except socket.error:
             print 'SOCKET CLOSED! closing connection'
@@ -64,6 +76,7 @@ def setup_socket(PORT=None):
     # Listen for incoming connections
     print('Now listening for connections on socket.')
     sock.listen(SOCK_BACKLOG)
+    signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
 
 def run(DATA, PORT=None):
     if (PORT):
