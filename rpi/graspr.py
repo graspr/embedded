@@ -24,21 +24,21 @@ def run():
         read_14 = mux.read(14)
         read_15 = mux.read(15)
         read_16 = mux.read(16)
-        yield "{},{:s},{:s},{:s} A".format(int(time.time()*1000), read_14, read_15, read_16)
+        yield "{},{:s},{:s},{:s}".format(int(time.time()*1000), read_14, read_15, read_16)
 
 
 def signal_handler(signal, frame):
     """
     For when we hit CTRL+C!
     """
-    print(('End of run: {!s} B'.format(time.time())))
+    print(('End of run: {!s}'.format(time.time())))
     sys.exit(0)
 
 
 def server(args):
     global DATA
     runner = run()
-    sys.stdout.write('=============== C')
+    sys.stdout.write('===============')
     sys.stdout.flush()
     for i in runner:
         DATA.append(i)
@@ -52,11 +52,11 @@ def spawn_in_thread():
     start_new_thread(web.run,(DATA, PORT))
 
 if __name__ == "__main__":
-    print('Setting up D')
+    print('Setting up')
     application_setup()
     spi.setup()
-    print(('Start of run: {!s} E'.format(time.time())))
-    print('Channel 14,Channel 15,Channel 16 F')
+    print(('Start of run: {!s}'.format(time.time())))
+    print('Channel 14,Channel 15,Channel 16')
 
     if len(sys.argv) > 1:
         PORT = sys.argv[1]
@@ -68,6 +68,6 @@ if __name__ == "__main__":
             toprint = "{}\r".format(len(DATA))
             sys.stdout.write(toprint)
         else:
-            sys.stdout.write('FULL! {} G\r'.format(str(int(time.time()))))
+            sys.stdout.write('FULL! {}\r'.format(str(int(time.time()))))
         sys.stdout.flush()
 

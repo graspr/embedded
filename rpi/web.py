@@ -28,7 +28,7 @@ def clientthread(conn, DATA):
         # if not data: 
         #     break
         try:
-            print 'LOL %s' % conn.send(reply)
+            print conn.send(reply)
         except socket.error:
             print 'SOCKET CLOSED! closing connection'
             conn.close()
