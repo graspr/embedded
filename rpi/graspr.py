@@ -24,7 +24,7 @@ def run():
         read_14 = mux.read(14)
         read_15 = mux.read(15)
         read_16 = mux.read(16)
-        yield "{},{:s},{:s},{:s},{},{},{}".format(int(time.time()*1000), read_14, read_15, read_16, int(read_14, 2), int(read_15, 2), int(read_16, 2))
+        yield "{},{:s},{:s},{:s}".format(int(time.time()*1000), read_14, read_15, read_16)
 
 
 def signal_handler(signal, frame):

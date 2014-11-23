@@ -16,15 +16,9 @@ def switch_to_channel(channel):
 
 def _make_binary(num):
     """
-    TODO: Investigate this. Can we just use 
-    
-    return format(num, '08b') 
-    
-    instead?
+    Just formats the number into padded 8 bit _make_binary
     """
     return format(ord(num), 'b').zfill(8)
-    
-
 
 def read(channel):
     """
@@ -46,12 +40,4 @@ def read(channel):
         wpi.digitalWrite(RPI.CSB, RPI.HIGH)
     except Exception as err:
         print("Error: {0}".format(err))
-    # if retcode == -1:
-    #     print((type(retcode)))
-    #     print((type(SPI_CHANNEL)))
-    #     err = 'ERROR PERFORMING SPI DATA RW on channel: {:s}, \
-    #            retcode: {:s}'.format(str(SPI_CHANNEL),str(retcode))
-    #     e = SPIError(err)
-    #     print(err)
-    #     # raise e
     return '{}{}'.format(value_1, value_2)
