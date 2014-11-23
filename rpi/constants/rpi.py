@@ -13,4 +13,4 @@ MOSI = 12
 SCKL = 14
 
 SPI_CHANNEL = 0  #on RPI there are two SPI channels, 0 and 1
-SPI_CLOCK_SPEED = int(2E6) #hz
+SPI_CLOCK_SPEED = int((2**19)) #hz == ~2.62mhz

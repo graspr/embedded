@@ -2,6 +2,7 @@ import socket
 from thread import *
 import sys
 import time
+import mux
 
 sock = None
 SOCK_HOST = ''
@@ -10,37 +11,34 @@ SOCK_BACKLOG = 3
 sock_connection = None
 sock_address = None
 
-
-
-def signal_handler(signal, frame):
-    """
-    For when we hit CTRL+C!
-    """
-    global sock
-    print('Closing socket.')
-    sock.close()
-    sys.exit(0)
-
 #Function for handling connections. This will be used to create threads
-def clientthread(conn, DATA):
+def clientthread(conn):
     #Sending message to connected client
     conn.send('START OF RUN:\n')
-    conn.send('{},channel 14,15,16,DEC(14),DEC(15),DEC(16)\n'.format(int(time.time()*1000))) #send only takes string
+    conn.send('{},channel 14,15,16\n'.format(int(time.time()*1000))) #send only takes string
      
-    #infinite loop so that function do not terminate and thread do not end.
+    t = int(time.time()*1000)
+    diff = 0
+    i = 0
+    COUNTS = 100
+    mux.switch_to_channel(1)
+    #infinite loop so that function do not terminate and thread does not end.
     while True:
-        # print 'DATA %s' % DATA
-        if (len(DATA) == 0):
-            reply = "NO_DATA"
-            # time.sleep(0.2)
+        if (i == COUNTS):
+            diff = int(time.time()*1000) - t
+            reply = "\n\nDELTA IS: %s, READS/SEC = %s\n\n" % (diff, (COUNTS * 1.0)/(diff/1000.0))
+            t = int(time.time()*1000)
+            i = 0
+            print(reply)
             continue
-        reply = '{}\n'.format(DATA[0])
-        DATA.popleft()
-        # if not data: 
-        #     break
+        i = i+1
         try:
-            # print 'LOL %s' % conn.send(reply)
-            pass
+            conn.send(",".join([mux.read(1), mux.read(2), mux.read(3), mux.read(4),\
+                              mux.read(5), mux.read(6), mux.read(7),\
+                              mux.read(8), \
+                              mux.read(9), mux.read(10), mux.read(11),\
+                              mux.read(12), mux.read(13), mux.read(14), \
+                              mux.read(15), mux.read(16)])) #35.198873636 reads/sec
         except socket.error:
             print 'SOCKET CLOSED! closing connection'
             conn.close()
@@ -76,21 +74,26 @@ def setup_socket(PORT=None):
     # Listen for incoming connections
     print('Now listening for connections on socket.')
     sock.listen(SOCK_BACKLOG)
-    signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
 
-def run(DATA, PORT=None):
-    if (PORT):
-        PORT = int(PORT)
-    setup_socket(PORT)
-    #now keep talking with the client
-    while True:
-        #wait to accept a connection - blocking call
-        sock_connection, sock_address = sock.accept()
-        sys.stdout.write('Connected with ' + sock_address[0] + ':' + str(sock_address[1]))
-         
-        #start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
-        start_new_thread(clientthread, (sock_connection, DATA))
 
+def run(PORT=None):
+    try:
+        if (PORT):
+            PORT = int(PORT)
+        setup_socket(PORT)
+        #now keep talking with the client
+        while True:
+            #wait to accept a connection - blocking call
+            sock_connection, sock_address = sock.accept()
+            print('Connection acquired!')
+            sys.stdout.write('Connected with ' + sock_address[0] + ':' + str(sock_address[1]))
+             
+            #start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
+            start_new_thread(clientthread, (sock_connection,))
+    except Exception:
+        import traceback
+        sys.stderr.write( traceback.format_exc())
+        sys.stderr.flush()
 
 if __name__ == "__main__":
-    run(None)
+    run('8181')
