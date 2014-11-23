@@ -39,5 +39,5 @@ def read(channel):
 
         wpi.digitalWrite(RPI.CSB, RPI.HIGH)
     except Exception as err:
-        print("Error: {0}".format(err))
-    return '{}{}'.format(value_1, value_2)
+        print("Error: {0} MM".format(err))
+    return '{}{} DD'.format(value_1, value_2)
