@@ -42,6 +42,7 @@ def server(args):
     sys.stdout.flush()
     for i in runner:
         DATA.append(i)
+    signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
 
 def application_setup():
     signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
