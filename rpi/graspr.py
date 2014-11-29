@@ -23,10 +23,6 @@ def signal_handler(signal, frame):
 def application_setup():
     signal.signal(signal.SIGINT, signal_handler) #handler for keyboard interrupt
 
-def spawn_in_thread():
-    # start_new_thread(server,(None,))
-    start_new_thread(web.run,(PORT,))
-
 if __name__ == "__main__":
     print('Setting up')
     application_setup()

@@ -33,7 +33,7 @@ def read(channel):
     """
     Reads the value of a channel (on the mux) from the adc
     """
-    # switch_to_channel(channel)
+    switch_to_channel(channel)
     val = '\n'
     value_1 = 0
     value_2 = 0
@@ -43,14 +43,14 @@ def read(channel):
         retcode = wpi.wiringPiSPIDataRW(RPI.SPI_CHANNEL, val) #drop this it's all 0's
         retcode = wpi.wiringPiSPIDataRW(RPI.SPI_CHANNEL, val)
         # value_1 = _make_binary(val)
-        value_1 = val
+        value_1 = _make_binary(val)
         retcode = wpi.wiringPiSPIDataRW(RPI.SPI_CHANNEL, val)
         # value_2 = _make_binary(val)
-        value_2 = val
+        value_2 = _make_binary(val)
 
         wpi.digitalWrite(RPI.CSB, RPI.HIGH)
     except Exception as err:
         sys.stderr.write("Error: {0}".format(err))
         sys.stderr.flush()
-    return '%s,%s\n' % (value_1, value_2)
+    return '%s%s' % (value_1, value_2)
 
