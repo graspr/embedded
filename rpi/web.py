@@ -6,7 +6,7 @@ import mux
 
 sock = None
 SOCK_HOST = ''
-SOCK_PORT = 8084
+SOCK_PORT = 8081
 SOCK_BACKLOG = 3
 sock_connection = None
 sock_address = None
@@ -25,7 +25,9 @@ def clientthread(conn):
     while True:
         if (i == COUNTS):
             diff = int(time.time()*1000) - t
-            reply = "\n\nDELTA IS: %s, READS/SEC = %s\n\n" % (diff, (COUNTS * 1.0)/(diff/1000.0))
+            rps = ((COUNTS * 1.0)/(diff/1000.0)) * 16
+            wps = rps/16
+            reply = "TIMEDELTA IS: %s milliseconds, CHANNEL_READS/SEC = %s, WRITES_TO_CLIENT/SEC = %s" % (diff, rps, wps)
             t = int(time.time()*1000)
             i = 0
             print(reply)
@@ -39,6 +41,12 @@ def clientthread(conn):
                               mux.read(9), mux.read(10), mux.read(11),\
                               mux.read(12), mux.read(13), mux.read(14), \
                               mux.read(15), mux.read(16)])
+            # data = ",".join(['1', '2', '3', '4',\
+            #                   '5', '6', '7',\
+            #                   '8', \
+            #                   '9', '10', '11',\
+            #                   '12', '13', mux.read(14), \
+            #                   mux.read(15), mux.read(16)])
             # print 'SIZE: %s' % data
             conn.send('%s\n' % data) #35.198873636 reads/sec
         except socket.error:
