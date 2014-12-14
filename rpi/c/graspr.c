@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
+#include "server.h"
+#include <signal.h>
 
 #define MODE_READ 0
 #define MODE_SET 1
@@ -40,6 +43,29 @@ uint8_t MUX_PINS[4];
 uint8_t i, len;
 uint8_t data, pin, debug_mode = DEBUG_OFF;
 
+char buffer[3];
+
+int CHANNELS[16][4] = {
+    {0, 0, 0, 0},
+    {0, 0, 0, 1},
+    {0, 0, 1, 0},
+    {0, 0, 1, 1},
+    {0, 1, 0, 0},
+    {0, 1, 0, 1},
+    {0, 1, 1, 0},
+    {0, 1, 1, 1},
+    {1, 0, 0, 0},
+    {1, 0, 0, 1},
+    {1, 0, 1, 0},
+    {1, 0, 1, 1},
+    {1, 1, 0, 0},
+    {1, 1, 0, 1},
+    {1, 1, 1, 0},
+    {1, 1, 1, 1},
+};
+
+uint8_t CURRENT_CHANNEL = 1;
+
 void gpio_reset(void);
 
 void spi_setup()
@@ -48,57 +74,107 @@ void spi_setup()
 	MUX_PINS[1] = A2;
 	MUX_PINS[2] = A1;
 	MUX_PINS[3] = A0;
+	bcm2835_gpio_fsel(CSB, BCM2835_GPIO_FSEL_OUTP);
+	bcm2835_gpio_fsel(EN, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_spi_begin();
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_65536); // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_512); // The default
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 
 }
 
-void spi_read()
+void switch_to_channel(uint8_t chan)
 {
-    uint8_t data = bcm2835_spi_transfer(0x23);
-    printf("Read from SPI: %02X\n", data);
-    data = bcm2835_spi_transfer(0x23);
-    printf("Read from SPI: %02X\n", data);
-    data = bcm2835_spi_transfer(0x23);
-    printf("Read from SPI: %02X\n", data);
+	uint32_t mask = 1 << A0 | 1 << A1 | 1 << A2 | 1 << A3;
+	bcm2835_gpio_clr_multi(mask);
 
+	mask = 0;
+	int conf[4]; 
+	memcpy(conf, CHANNELS[chan-1], sizeof conf);
+	mask = conf[0] << A0 | conf[1] << A1 | conf[2] << A2 | conf[3] << A3;
+	bcm2835_gpio_set_multi(mask);
+	CURRENT_CHANNEL = chan;
+}
+
+
+char val;
+char * spi_read(uint8_t channel)
+{
+	switch_to_channel(channel);
+    bcm2835_spi_transfern(buffer, 3);
+    val = (buffer[1] << 8) + buffer[2];
+    printf("Read from SPI: %d:: %d :: %d\n", CURRENT_CHANNEL, val, sizeof val);
+    return buffer;
 }
 
 void spi_shutdown()
 {
     bcm2835_spi_end();
+    gpio_reset();
     bcm2835_close();
 }
 
-void gpio_read(int pin)
+
+// void gpio_read(int pin)
+// {
+// 	bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
+//     data = bcm2835_gpio_lev(pin);
+//     printf("Reading pin: %d\n", data);
+// }
+
+// void gpio_write(int pin)
+// {
+// 	bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_OUTP);
+// 	bcm2835_gpio_set(pin); //?????
+// }
+
+void gpio_setup()
 {
-	bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
-    data = bcm2835_gpio_lev(pin);
-    printf("Reading pin: %d\n", data);
+	int x;
+	for (x=0; x<4; x++)
+	{
+		bcm2835_gpio_fsel(MUX_PINS[x], BCM2835_GPIO_FSEL_OUTP);
+	}
 }
 
-void gpio_write(int pin)
-{
-	bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_OUTP);
-	bcm2835_gpio_set(pin); //?????
+void intHandler(int dummy) {
+    spi_shutdown();
+    exit(0);
 }
 
 int main(int argc, char **argv)
 {
+	float startTime = (float)clock();
+	signal(SIGINT, intHandler);
 	if (!bcm2835_init())
 	{
 		return 1;
 	}
-    
-	gpio_read(A0);
+	// gpio_read(A0);
+	gpio_setup();
 	spi_setup();
-	spi_read();
+	// create_socket(8082);
+	int x = 0;
+	int i=1;
+
+	while (x < 1000)
+	{
+		if (i==17)
+		{
+			i = 1;
+		}
+		
+		spi_read(i);
+		x++;
+		i++;
+	}
 	spi_shutdown();
 	printf("... done!\n");
+	float endTime = (float)clock();
+	float timeElapsed = (endTime - startTime)/(CLOCKS_PER_SEC);
+	printf("SPEED: %f kHZ", (1000/timeElapsed)/1000);
 
 	return 0;
 }
