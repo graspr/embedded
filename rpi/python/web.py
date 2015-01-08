@@ -47,7 +47,7 @@ def clientthread(conn):
             #                   '9', '10', '11',\
             #                   '12', '13', mux.read(14), \
             #                   mux.read(15), mux.read(16)])
-            # print 'SIZE: %s' % data
+            print 'DATA: %s' % data
             conn.send('%s\n' % data) #35.198873636 reads/sec
         except socket.error:
             print 'SOCKET CLOSED! closing connection'

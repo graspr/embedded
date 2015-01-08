@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "14AE093D1A45B8BD008897B9"
+               BlueprintIdentifier = "146FA7AD1A45BD2D003A0CD0"
                BuildableName = "rpi"
                BlueprintName = "rpi"
                ReferencedContainer = "container:rpi.xcodeproj">
@@ -32,7 +32,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "14AE093D1A45B8BD008897B9"
+            BlueprintIdentifier = "146FA7AD1A45BD2D003A0CD0"
             BuildableName = "rpi"
             BlueprintName = "rpi"
             ReferencedContainer = "container:rpi.xcodeproj">
@@ -51,7 +51,7 @@
       <BuildableProductRunnable>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "14AE093D1A45B8BD008897B9"
+            BlueprintIdentifier = "146FA7AD1A45BD2D003A0CD0"
             BuildableName = "rpi"
             BlueprintName = "rpi"
             ReferencedContainer = "container:rpi.xcodeproj">
@@ -69,7 +69,7 @@
       <BuildableProductRunnable>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "14AE093D1A45B8BD008897B9"
+            BlueprintIdentifier = "146FA7AD1A45BD2D003A0CD0"
             BuildableName = "rpi"
             BlueprintName = "rpi"
             ReferencedContainer = "container:rpi.xcodeproj">

@@ -7,7 +7,6 @@
 #include <signal.h>
 #include "server.h"
 
-
 #define MODE_READ 0
 #define MODE_SET 1
 #define MODE_CLR 2
@@ -67,8 +66,13 @@ int CHANNELS[16][4] = {
 
 uint8_t CURRENT_CHANNEL = 1;
 
+/** FUNCTION SIGNATURES **/
+void spi_shutdown();
+void shutdown();
 void gpio_reset(void);
+/** END FUNCTION SIGNATURES **/
 
+/***** SETUP STUFF ****/
 void spi_setup() {
     MUX_PINS[0] = A3;
     MUX_PINS[1] = A2;
@@ -79,32 +83,9 @@ void spi_setup() {
     bcm2835_spi_begin();
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64);
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_512);
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
-}
-
-void switch_to_channel(uint8_t chan) {
-    BIT_MASK = 1 << A0 | 1 << A1 | 1 << A2 | 1 << A3;
-    bcm2835_gpio_clr_multi(BIT_MASK);
-
-    BIT_MASK = 0;
-    int conf[4];
-    memcpy(conf, CHANNELS[chan-1], sizeof conf);
-    BIT_MASK = conf[0] << A0 | conf[1] << A1 | conf[2] << A2 | conf[3] << A3;
-    bcm2835_gpio_set_multi(BIT_MASK);
-    CURRENT_CHANNEL = chan;
-}
-
-
-uint32_t val;
-uint32_t spi_read(uint8_t channel) {
-    switch_to_channel(channel);
-    bcm2835_spi_transfern(buffer, 3);
-    val = (buffer[1] << 8) + buffer[2];
-    // printf("Read from SPI: %d:: %d :: %d :: %d\n", \
-    //        buffer[0], buffer[1], buffer[2], val);
-    return val;
 }
 
 void spi_shutdown() {
@@ -112,20 +93,6 @@ void spi_shutdown() {
     gpio_reset();
     bcm2835_close();
 }
-
-
-// void gpio_read(int pin)
-// {
-//  bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
-//     data = bcm2835_gpio_lev(pin);
-//     printf("Reading pin: %d\n", data);
-// }
-
-// void gpio_write(int pin)
-// {
-//  bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_OUTP);
-//  bcm2835_gpio_set(pin); //?????
-// }
 
 void gpio_setup() {
     int x;
@@ -138,7 +105,7 @@ void gpio_setup() {
 
 void intHandler(int dummy) {
     printf("SHUTTING DOWN\n");
-    spi_shutdown();
+    shutdown();
     exit(0);
 }
 
@@ -148,74 +115,96 @@ uint64_t getTimeStamp() {
     return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
 }
 
-uint32_t vals[16];
-uint32_t* mega_read() {
+void print_array(uint32_t* arr, int len) {
     int i;
-    for (i = 0; i < 17; i++) {
-        vals[i] = spi_read(i);
+    for (i=0; i<len; i++) {
+        printf("%d,", arr[i]);
     }
-    return vals;
+    printf("\n");
 }
+
+/***** END SETUP STUFF *********/
+
+
+/***** VALUE READING STUFF ****/
+void switch_to_channel(uint8_t chan) {
+    if (chan > 16 || chan < 1) {
+        printf("BAD CHANNEL! DOESN'T EXIST! %d\n", chan);
+        printf("EXITING...\n");
+        shutdown();
+        exit(1);
+    }
+    BIT_MASK = 1 << A0 | 1 << A1 | 1 << A2 | 1 << A3;
+    bcm2835_gpio_clr_multi(BIT_MASK);
+    
+    BIT_MASK = 0;
+    int conf[4];
+    memcpy(conf, CHANNELS[chan-1], sizeof conf);
+    BIT_MASK = conf[0] << A0 | conf[1] << A1 | conf[2] << A2 | conf[3] << A3;
+    bcm2835_gpio_set_multi(BIT_MASK);
+    CURRENT_CHANNEL = chan;
+}
+
+uint32_t val;
+uint32_t spi_read(uint8_t channel) {
+    switch_to_channel(channel);
+    bcm2835_spi_transfern(buffer, 3);
+    val = (buffer[1] << 8) + buffer[2];
+//    printf("Read from SPI: %d:: %d :: %d :: %d\n", \
+//           buffer[0], buffer[1], buffer[2], val);
+    return val;
+}
+
+static uint32_t readings[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+void mega_read() {
+    int i;
+    for (i = 1; i <= 16; i++) {
+        readings[i-1] = spi_read(i);
+    }
+}
+/***** END VALUE READING STUFF ****/
 
 int main(int argc, char **argv) {
     struct timeval tvalBefore, tvalAfter;  // removed comma
 
     gettimeofday(&tvalBefore, NULL);
-    // uint64_t startTime = getTimeStamp();
     signal(SIGINT, intHandler);
     if (!bcm2835_init()) {
         return 1;
     }
-    // gpio_read(A0);
     gpio_setup();
     spi_setup();
-    // create_socket(8082);
+    create_socket(8084);
     int x = 0;
-    int i = 1;
     int READS = 0;
-    int NUM_READS = 10000;
-    uint32_t *lol;
-    // switch_to_channel(2);
-    lol = mega_read();
+    int NUM_READS = 1000;
+    mega_read();
     while (1) {
-        if (i == 17) {
-            i = 1;
-        }
-
         if (READS == NUM_READS) {
             gettimeofday(&tvalAfter, NULL);
             float delta = ((tvalAfter.tv_sec - tvalBefore.tv_sec)*1000000.0 \
                 + tvalAfter.tv_usec) - tvalBefore.tv_usec;
             float reads_per_sec = NUM_READS/(delta/(1000000.0));
-            printf("READS:%i SPEED: %f HZ\n", READS, reads_per_sec);
-            // char* buffer = spi_read(i);
             
-            
-            
-            printf("BUFFER!!! %d, %d, %d \n", &(lol[13]), &lol[14], &lol[15]);
+            printf("SPEED: %f HZ:: ", reads_per_sec);
+            print_array(readings, 16);
             READS = 0;
             gettimeofday(&tvalBefore, NULL);
         }
-        spi_read(i);
+        mega_read();
+        send_data(readings);
         READS++;
         x++;
-        i++;
-    }
-    // printf("eh?");
-    // gettimeofday (&tvalAfter, NULL);
 
-    // long delta = ((tvalAfter.tv_sec - tvalBefore.tv_sec)*1000000L + \
-    // tvalAfter.tv_usec) - tvalBefore.tv_usec;
-    // printf("Time in microseconds: %ld microseconds\n", delta);
-    // float reads_per_sec = (float)NUM_READS/((float)delta/(1000000.0));
-    // printf("... done!\n");
-    // // uint64_t endTime = getTimeStamp();
-    //  uint64_t timeElapsed = (endTime - startTime)/(1000000);
-    // microseconds to seconds
-    // printf("SPEED: %f HZ", reads_per_sec);
-    // printf("startime %s, endtime %s", startTime, endTime);
-    spi_shutdown();
+        
+    }
+    shutdown();
     return 0;
+}
+
+void shutdown() {
+    shutdown_socket();
+    spi_shutdown();
 }
 
 
