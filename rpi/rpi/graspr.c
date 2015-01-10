@@ -83,7 +83,7 @@ void spi_setup() {
     bcm2835_spi_begin();
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_512);
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_128);
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 }
@@ -123,6 +123,21 @@ void print_array(uint32_t* arr, int len) {
     printf("\n");
 }
 
+void setup_signals() {
+    signal(SIGINT, intHandler);
+    signal(SIGPIPE, SIG_IGN);
+}
+
+void server_setup() {
+    setup_signals();
+    if (!bcm2835_init()) {
+        printf("ERROR: BCM2835_INIT PROBLEM.\n\n");
+        exit(1);
+    }
+    gpio_setup();
+    spi_setup();
+}
+
 /***** END SETUP STUFF *********/
 
 
@@ -150,8 +165,8 @@ uint32_t spi_read(uint8_t channel) {
     switch_to_channel(channel);
     bcm2835_spi_transfern(buffer, 3);
     val = (buffer[1] << 8) + buffer[2];
-//    printf("Read from SPI: %d:: %d :: %d :: %d\n", \
-//           buffer[0], buffer[1], buffer[2], val);
+   // printf("Read from SPI (chan): (%d) %d:: %d :: %d :: %d\n", \
+   //        16, buffer[0], buffer[1], buffer[2], val);
     return val;
 }
 
@@ -164,40 +179,46 @@ void mega_read() {
 }
 /***** END VALUE READING STUFF ****/
 
-int main(int argc, char **argv) {
+void main_loop(int PORT) {
     struct timeval tvalBefore, tvalAfter;  // removed comma
-
     gettimeofday(&tvalBefore, NULL);
-    signal(SIGINT, intHandler);
-    if (!bcm2835_init()) {
-        return 1;
-    }
-    gpio_setup();
-    spi_setup();
-    create_socket(8084);
-    int x = 0;
     int READS = 0;
-    int NUM_READS = 1000;
-    mega_read();
+    int NUM_READS = 100;
+    int SOCKET_SEND_CODE = 0;
+    create_socket(PORT);
     while (1) {
-        if (READS == NUM_READS) {
-            gettimeofday(&tvalAfter, NULL);
-            float delta = ((tvalAfter.tv_sec - tvalBefore.tv_sec)*1000000.0 \
-                + tvalAfter.tv_usec) - tvalBefore.tv_usec;
-            float reads_per_sec = NUM_READS/(delta/(1000000.0));
-            
-            printf("SPEED: %f HZ:: ", reads_per_sec);
-            print_array(readings, 16);
-            READS = 0;
-            gettimeofday(&tvalBefore, NULL);
+        accept_new_socket_connection();
+        while (1) {
+            if (READS == NUM_READS) {
+                gettimeofday(&tvalAfter, NULL);
+                float delta = ((tvalAfter.tv_sec - tvalBefore.tv_sec)*1000000.0 \
+                    + tvalAfter.tv_usec) - tvalBefore.tv_usec;
+                float reads_per_sec = NUM_READS/(delta/(1000000.0));
+                
+                printf("SPEED: %f HZ\n", reads_per_sec);
+                // print_array(readings, 16);
+                READS = 0;
+                gettimeofday(&tvalBefore, NULL);
+            }
+            mega_read();
+            SOCKET_SEND_CODE = send_data(readings);
+            if (SOCKET_SEND_CODE == SOCKET_SEND_ERROR) {
+                close_active_socket();
+                break;
+            }
+            READS++;
         }
-        mega_read();
-        send_data(readings);
-        READS++;
-        x++;
-
-        
     }
+}
+
+int main(int argc, char **argv) {
+    if (!argv[1]) {
+        printf("Specify a port (first argument)!\n\n");
+        exit(1);
+    }
+    int PORT = atoi(argv[1]);
+    server_setup();
+    main_loop(PORT);
     shutdown();
     return 0;
 }
