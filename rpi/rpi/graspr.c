@@ -99,8 +99,12 @@ void gpio_setup() {
     for (x = 0; x < 4; x++) {
         bcm2835_gpio_fsel(MUX_PINS[x], BCM2835_GPIO_FSEL_OUTP);
     }
-    uint32_t zero = 0;
-    bcm2835_gpio_clr_multi(zero);
+    bcm2835_gpio_fsel(A0, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(A1, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(A2, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(A3, BCM2835_GPIO_FSEL_OUTP);
+    // uint32_t zero = 0;
+    // bcm2835_gpio_clr_multi(zero);
 }
 
 void intHandler(int dummy) {
@@ -141,6 +145,25 @@ void server_setup() {
 /***** END SETUP STUFF *********/
 
 
+//assumes little endian
+void printBits(size_t const size, void const * const ptr)
+{
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+
+    for (i=size-1;i>=0;i--)
+    {
+        for (j=7;j>=0;j--)
+        {
+            byte = b[i] & (1<<j);
+            byte >>= j;
+            printf("%u", byte);
+        }
+    }
+    puts("");
+}
+
 /***** VALUE READING STUFF ****/
 void switch_to_channel(uint8_t chan) {
     if (chan > 16 || chan < 1) {
@@ -150,12 +173,17 @@ void switch_to_channel(uint8_t chan) {
         exit(1);
     }
     BIT_MASK = 1 << A0 | 1 << A1 | 1 << A2 | 1 << A3;
+    printf("\nMASK FOR CLEAR===============..\n");
+    printBits(sizeof(BIT_MASK), &BIT_MASK);
     bcm2835_gpio_clr_multi(BIT_MASK);
     
     BIT_MASK = 0;
     int conf[4];
     memcpy(conf, CHANNELS[chan-1], sizeof conf);
     BIT_MASK = conf[0] << A0 | conf[1] << A1 | conf[2] << A2 | conf[3] << A3;
+    
+    printBits(sizeof(BIT_MASK), &BIT_MASK);
+    printf("\nMASK FOR BITS===============^^\n");
     bcm2835_gpio_set_multi(BIT_MASK);
     CURRENT_CHANNEL = chan;
 }
@@ -165,8 +193,8 @@ uint32_t spi_read(uint8_t channel) {
     switch_to_channel(channel);
     bcm2835_spi_transfern(buffer, 3);
     val = (buffer[1] << 8) + buffer[2];
-   // printf("Read from SPI (chan): (%d) %d:: %d :: %d :: %d\n", \
-   //        16, buffer[0], buffer[1], buffer[2], val);
+   printf("Read from SPI (chan): (%d) %d:: %d :: %d :: %d\n", \
+          channel, buffer[0], buffer[1], buffer[2], val);
     return val;
 }
 

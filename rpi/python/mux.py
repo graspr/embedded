@@ -45,7 +45,7 @@ def read(channel):
     """
     Reads the value of a channel (on the mux) from the adc
     """
-    switch_to_channel(channel)
+    # switch_to_channel(channel)
     val = '\n'
     value_1 = 0
     value_2 = 0

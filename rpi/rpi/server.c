@@ -48,7 +48,7 @@ void shutdown_socket() {
 
 int send_data(uint32_t * words)
 {
-    sprintf(buffer, "%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,", 
+    sprintf(buffer, "%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%5d\n", 
         words[0],
         words[1],
         words[2],

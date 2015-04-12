@@ -20,7 +20,7 @@ def clientthread(conn):
     diff = 0
     i = 0
     COUNTS = 100
-    # mux.switch_to_channel(1)
+    mux.switch_to_channel(16)
     #infinite loop so that function do not terminate and thread does not end.
     while True:
         if (i == COUNTS):
@@ -35,18 +35,18 @@ def clientthread(conn):
         i = i+1
         try:
             
-            data = ",".join([mux.read(1), mux.read(2), mux.read(3), mux.read(4),\
-                              mux.read(5), mux.read(6), mux.read(7),\
-                              mux.read(8), \
-                              mux.read(9), mux.read(10), mux.read(11),\
-                              mux.read(12), mux.read(13), mux.read(14), \
-                              mux.read(15), mux.read(16)])
-            # data = ",".join(['1', '2', '3', '4',\
-            #                   '5', '6', '7',\
-            #                   '8', \
-            #                   '9', '10', '11',\
-            #                   '12', '13', mux.read(14), \
+            # data = ",".join([mux.read(1), mux.read(2), mux.read(3), mux.read(4),\
+            #                   mux.read(5), mux.read(6), mux.read(7),\
+            #                   mux.read(8), \
+            #                   mux.read(9), mux.read(10), mux.read(11),\
+            #                   mux.read(12), mux.read(13), mux.read(14), \
             #                   mux.read(15), mux.read(16)])
+            data = ",".join(['1', '2', '3', '4',\
+                              '5', '6', '7',\
+                              '8', \
+                              '9', '10', '11',\
+                              '12', '13', '14', \
+                              '16', mux.read(16)])
             print 'DATA: %s' % data
             conn.send('%s\n' % data) #35.198873636 reads/sec
         except socket.error:
