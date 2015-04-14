@@ -1,1 +1,1 @@
-gcc -o graspr graspr.c server.c -l bcm2835
+gcc -o graspr graspr.c server.c utils.c -l bcm2835

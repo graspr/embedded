@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		146FA7BB1A45BD66003A0CD0 /* graspr.c in Sources */ = {isa = PBXBuildFile; fileRef = 146FA7B81A45BD66003A0CD0 /* graspr.c */; };
 		146FA7BC1A45BD66003A0CD0 /* server.c in Sources */ = {isa = PBXBuildFile; fileRef = 146FA7B91A45BD66003A0CD0 /* server.c */; };
+		148C80E41ADB28E40035A208 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 148C80E31ADB28E40035A208 /* utils.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,9 +26,12 @@
 
 /* Begin PBXFileReference section */
 		146FA7AE1A45BD2D003A0CD0 /* rpi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rpi; sourceTree = BUILT_PRODUCTS_DIR; };
-		146FA7B81A45BD66003A0CD0 /* graspr.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = graspr.c; sourceTree = "<group>"; };
+		146FA7B81A45BD66003A0CD0 /* graspr.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.c; fileEncoding = 4; path = graspr.c; sourceTree = "<group>"; };
 		146FA7B91A45BD66003A0CD0 /* server.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = server.c; sourceTree = "<group>"; };
 		146FA7BA1A45BD66003A0CD0 /* server.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
+		148C80E11ADB253A0035A208 /* graspr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graspr.h; sourceTree = "<group>"; };
+		148C80E21ADB288B0035A208 /* utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
+		148C80E31ADB28E40035A208 /* utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utils.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +67,9 @@
 				146FA7B81A45BD66003A0CD0 /* graspr.c */,
 				146FA7B91A45BD66003A0CD0 /* server.c */,
 				146FA7BA1A45BD66003A0CD0 /* server.h */,
+				148C80E11ADB253A0035A208 /* graspr.h */,
+				148C80E21ADB288B0035A208 /* utils.h */,
+				148C80E31ADB28E40035A208 /* utils.c */,
 			);
 			path = rpi;
 			sourceTree = "<group>";
@@ -123,6 +130,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				148C80E41ADB28E40035A208 /* utils.c in Sources */,
 				146FA7BB1A45BD66003A0CD0 /* graspr.c in Sources */,
 				146FA7BC1A45BD66003A0CD0 /* server.c in Sources */,
 			);

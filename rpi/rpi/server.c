@@ -12,10 +12,7 @@
 #define TRUE    1
 #define FALSE   0
 
-
-
-void error(const char *msg)
-{
+void error(const char *msg) {
     printf("CALLED ERROR FUNCTION!");
     perror(msg);
     exit(1);

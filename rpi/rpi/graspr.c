@@ -4,24 +4,12 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/time.h>
+
 #include <signal.h>
 #include "server.h"
+#include "graspr.h"
+#include "utils.h"
 
-#define MODE_READ 0
-#define MODE_SET 1
-#define MODE_CLR 2
-#define MODE_INPUT_READ 3
-
-#define PULL_UP 0
-#define PULL_DOWN 1
-#define NO_PULL 2
-#define GPIO_BEGIN 0
-#define GPIO_END 1
-#define NO_ACTION 2
-
-#define NO_PIN 40  // Some big number that's beyond the connector's pin count
-#define DEBUG_OFF 0
-#define DEBUG_ON 1
 
 uint8_t  init = NO_ACTION;
 uint8_t  pull = NO_PULL;
@@ -66,18 +54,15 @@ int CHANNELS[16][4] = {
 
 uint8_t CURRENT_CHANNEL = 1;
 
-/** FUNCTION SIGNATURES **/
-void spi_shutdown();
-void shutdown();
-void gpio_reset(void);
-/** END FUNCTION SIGNATURES **/
-
-/***** SETUP STUFF ****/
-void spi_setup() {
+/***** SETUP ****/
+void pin_setup() {
     MUX_PINS[0] = A3;
     MUX_PINS[1] = A2;
     MUX_PINS[2] = A1;
     MUX_PINS[3] = A0;
+}
+
+void spi_setup() {
     bcm2835_gpio_fsel(CSB, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(EN, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_spi_begin();
@@ -86,12 +71,6 @@ void spi_setup() {
     bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_128);
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
-}
-
-void spi_shutdown() {
-    bcm2835_spi_end();
-    gpio_reset();
-    bcm2835_close();
 }
 
 void gpio_setup() {
@@ -107,74 +86,35 @@ void gpio_setup() {
     // bcm2835_gpio_clr_multi(zero);
 }
 
-void intHandler(int dummy) {
-    printf("SHUTTING DOWN\n");
-    shutdown();
-    exit(0);
-}
-
-uint64_t getTimeStamp() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
-}
-
-void print_array(uint32_t* arr, int len) {
-    int i;
-    for (i=0; i<len; i++) {
-        printf("%d,", arr[i]);
-    }
-    printf("\n");
-}
-
 void setup_signals() {
-    signal(SIGINT, intHandler);
+    signal(SIGINT, graspr_shutdown);
     signal(SIGPIPE, SIG_IGN);
 }
 
 void server_setup() {
+    pin_setup();
     setup_signals();
     if (!bcm2835_init()) {
         printf("ERROR: BCM2835_INIT PROBLEM.\n\n");
-        exit(1);
+        graspr_shutdown(1);
     }
     gpio_setup();
     spi_setup();
 }
+/***** END SETUP *********/
 
-/***** END SETUP STUFF *********/
 
-
-//assumes little endian
-void printBits(size_t const size, void const * const ptr)
-{
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-
-    for (i=size-1;i>=0;i--)
-    {
-        for (j=7;j>=0;j--)
-        {
-            byte = b[i] & (1<<j);
-            byte >>= j;
-            printf("%u", byte);
-        }
-    }
-    puts("");
-}
-
-/***** VALUE READING STUFF ****/
+/***** VALUE READING ****/
 void switch_to_channel(uint8_t chan) {
     if (chan > 16 || chan < 1) {
         printf("BAD CHANNEL! DOESN'T EXIST! %d\n", chan);
         printf("EXITING...\n");
-        shutdown();
+        graspr_shutdown();
         exit(1);
     }
     BIT_MASK = 1 << A0 | 1 << A1 | 1 << A2 | 1 << A3;
-    printf("\nMASK FOR CLEAR===============..\n");
-    printBits(sizeof(BIT_MASK), &BIT_MASK);
+//    printf("\nMASK FOR CLEAR===============..\n");
+//    printBits(sizeof(BIT_MASK), &BIT_MASK);
     bcm2835_gpio_clr_multi(BIT_MASK);
     
     BIT_MASK = 0;
@@ -182,30 +122,29 @@ void switch_to_channel(uint8_t chan) {
     memcpy(conf, CHANNELS[chan-1], sizeof conf);
     BIT_MASK = conf[0] << A0 | conf[1] << A1 | conf[2] << A2 | conf[3] << A3;
     
-    printBits(sizeof(BIT_MASK), &BIT_MASK);
-    printf("\nMASK FOR BITS===============^^\n");
+//    printBits(sizeof(BIT_MASK), &BIT_MASK);
+//    printf("\nMASK FOR BITS===============^^\n");
     bcm2835_gpio_set_multi(BIT_MASK);
     CURRENT_CHANNEL = chan;
 }
 
-uint32_t val;
+
 uint32_t spi_read(uint8_t channel) {
     switch_to_channel(channel);
     bcm2835_spi_transfern(buffer, 3);
-    val = (buffer[1] << 8) + buffer[2];
-   printf("Read from SPI (chan): (%d) %d:: %d :: %d :: %d\n", \
-          channel, buffer[0], buffer[1], buffer[2], val);
-    return val;
+    spi_read_val = (buffer[1] << 8) + buffer[2];
+//   printf("Read from SPI (chan): (%d) %d:: %d :: %d :: %d\n", \
+//          channel, buffer[0], buffer[1], buffer[2], spi_read_val);
+    return spi_read_val;
 }
 
-static uint32_t readings[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 void mega_read() {
     int i;
     for (i = 1; i <= 16; i++) {
         readings[i-1] = spi_read(i);
     }
 }
-/***** END VALUE READING STUFF ****/
+/***** END VALUE READING ****/
 
 void main_loop(int PORT) {
     struct timeval tvalBefore, tvalAfter;  // removed comma
@@ -247,48 +186,55 @@ int main(int argc, char **argv) {
     int PORT = atoi(argv[1]);
     server_setup();
     main_loop(PORT);
-    shutdown();
+    graspr_shutdown();
     return 0;
 }
 
-void shutdown() {
-    shutdown_socket();
-    spi_shutdown();
+void spi_shutdown() {
+    bcm2835_spi_end();
+    gpio_reset();
+    bcm2835_close();
 }
 
+void graspr_shutdown(int exitcode) {
+    printf("SHUTTING DOWN %d\n", exitcode);
+    shutdown_socket();
+    spi_shutdown();
+    exit(exitcode);
+}
 
 void gpio_reset(void) {
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_03, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_05, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_07, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_26, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_24, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_21, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_19, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_23, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_10, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_11, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_12, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_13, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_15, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_16, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_18, BCM2835_GPIO_PUD_OFF);
-    // bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_22, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_03, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_05, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_07, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_26, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_24, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_21, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_19, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_23, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_10, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_11, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_12, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_13, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_15, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_16, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_18, BCM2835_GPIO_PUD_OFF);
+     bcm2835_gpio_set_pud(RPI_V2_GPIO_P1_22, BCM2835_GPIO_PUD_OFF);
 
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_03, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_05, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_07, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_26, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_24, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_21, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_19, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_23, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_10, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_12, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_13, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_15, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_16, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_INPT);
-    // bcm2835_gpio_fsel(RPI_V2_GPIO_P1_22, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_03, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_05, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_07, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_26, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_24, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_21, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_19, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_23, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_10, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_11, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_12, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_13, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_15, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_16, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_INPT);
+     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_22, BCM2835_GPIO_FSEL_INPT);
 }
